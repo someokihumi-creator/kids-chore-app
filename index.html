@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>おてつだいポイント</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div id="app">
+    <div id="loading" class="loading">
+      <div class="spinner"></div>
+      <p>じゅんびちゅう...</p>
+    </div>
+  </div>
+
+  <!-- テンプレート集 -->
+  <template id="tpl-profile-picker">
+    <div class="screen profile-picker">
+      <h1 class="app-title">🌟 おてつだいポイント 🌟</h1>
+      <p class="subtitle">だれがつかいますか？</p>
+      <div class="profile-grid" data-slot="kids"></div>
+      <button class="btn btn-parent" data-action="go-parent">👪 おうちの人</button>
+    </div>
+  </template>
+
+  <template id="tpl-kid-card">
+    <button class="profile-card" data-action="pick-kid">
+      <span class="profile-emoji" data-slot="emoji"></span>
+      <span class="profile-name" data-slot="name"></span>
+      <span class="profile-points" data-slot="points"></span>
+    </button>
+  </template>
+
+  <template id="tpl-kid-home">
+    <div class="screen kid-home">
+      <header class="topbar">
+        <button class="btn-icon" data-action="go-home">🏠</button>
+        <div class="who">
+          <span data-slot="emoji"></span>
+          <span data-slot="name"></span>
+        </div>
+        <div class="points-badge"><span data-slot="points"></span>pt</div>
+      </header>
+      <nav class="tabs">
+        <button class="tab active" data-tab="chores">✅ おてつだい</button>
+        <button class="tab" data-tab="rewards">🎁 こうかん</button>
+        <button class="tab" data-tab="history">📜 きろく</button>
+      </nav>
+      <section class="tab-panel" data-panel="chores">
+        <div class="card-list" data-slot="chore-list"></div>
+      </section>
+      <section class="tab-panel hidden" data-panel="rewards">
+        <div class="card-list" data-slot="reward-list"></div>
+      </section>
+      <section class="tab-panel hidden" data-panel="history">
+        <div class="history-list" data-slot="history-list"></div>
+      </section>
+    </div>
+  </template>
+
+  <template id="tpl-chore-item">
+    <div class="item-card">
+      <div class="item-main">
+        <div class="item-name" data-slot="name"></div>
+        <div class="item-points" data-slot="points"></div>
+      </div>
+      <button class="btn btn-do" data-action="do-chore">できた！</button>
+    </div>
+  </template>
+
+  <template id="tpl-reward-item">
+    <div class="item-card">
+      <div class="item-main">
+        <div class="item-name" data-slot="name"></div>
+        <div class="item-points" data-slot="cost"></div>
+      </div>
+      <button class="btn btn-redeem" data-action="do-redeem">こうかんする</button>
+    </div>
+  </template>
+
+  <template id="tpl-history-item">
+    <div class="history-item">
+      <span class="history-status" data-slot="status"></span>
+      <span class="history-text" data-slot="text"></span>
+      <span class="history-date" data-slot="date"></span>
+    </div>
+  </template>
+
+  <template id="tpl-parent-home">
+    <div class="screen parent-home">
+      <header class="topbar">
+        <button class="btn-icon" data-action="go-home">🏠</button>
+        <div class="who">👪 おうちの人</div>
+        <div></div>
+      </header>
+      <nav class="tabs">
+        <button class="tab active" data-tab="approvals">🔔 しょうにん<span class="badge" data-slot="pending-badge"></span></button>
+        <button class="tab" data-tab="manage">⚙️ かんり</button>
+        <button class="tab" data-tab="history">📜 きろく</button>
+      </nav>
+      <section class="tab-panel" data-panel="approvals">
+        <h2 class="section-title">おてつだいの申請</h2>
+        <div class="card-list" data-slot="pending-completions"></div>
+        <h2 class="section-title">こうかんの申請</h2>
+        <div class="card-list" data-slot="pending-redemptions"></div>
+      </section>
+      <section class="tab-panel hidden" data-panel="manage">
+        <div class="manage-section">
+          <h2 class="section-title">こども</h2>
+          <div class="manage-list" data-slot="manage-kids"></div>
+          <form class="add-form" data-form="add-kid">
+            <input type="text" placeholder="なまえ" data-field="name" required />
+            <input type="text" placeholder="絵文字(😀)" data-field="emoji" maxlength="2" required />
+            <button type="submit" class="btn btn-add">＋ ついか</button>
+          </form>
+        </div>
+        <div class="manage-section">
+          <h2 class="section-title">おてつだい</h2>
+          <div class="manage-list" data-slot="manage-chores"></div>
+          <form class="add-form" data-form="add-chore">
+            <input type="text" placeholder="おてつだい名" data-field="name" required />
+            <input type="number" placeholder="ポイント" data-field="points" min="1" required />
+            <button type="submit" class="btn btn-add">＋ ついか</button>
+          </form>
+        </div>
+        <div class="manage-section">
+          <h2 class="section-title">ごほうび</h2>
+          <div class="manage-list" data-slot="manage-rewards"></div>
+          <form class="add-form" data-form="add-reward">
+            <input type="text" placeholder="ごほうび名" data-field="name" required />
+            <input type="number" placeholder="ひつようポイント" data-field="cost" min="1" required />
+            <button type="submit" class="btn btn-add">＋ ついか</button>
+          </form>
+        </div>
+      </section>
+      <section class="tab-panel hidden" data-panel="history">
+        <div class="history-list" data-slot="all-history"></div>
+      </section>
+    </div>
+  </template>
+
+  <template id="tpl-approval-item">
+    <div class="item-card">
+      <div class="item-main">
+        <div class="item-name" data-slot="text"></div>
+        <div class="item-points" data-slot="sub"></div>
+      </div>
+      <div class="approval-actions">
+        <button class="btn btn-reject" data-action="reject">✕</button>
+        <button class="btn btn-approve" data-action="approve">✓</button>
+      </div>
+    </div>
+  </template>
+
+  <template id="tpl-manage-row">
+    <div class="manage-row">
+      <span class="manage-row-emoji" data-slot="emoji"></span>
+      <span class="manage-row-name" data-slot="name"></span>
+      <span class="manage-row-value" data-slot="value"></span>
+      <button class="btn-icon" data-action="toggle-active" data-slot="toggle-btn"></button>
+      <button class="btn-icon" data-action="delete-item">🗑️</button>
+    </div>
+  </template>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
