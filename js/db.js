@@ -77,6 +77,16 @@ export const requestCompletion = (kid, chore) =>
     decidedAt: null,
   });
 
+function dayKey(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function daysBetween(dayKeyA, dayKeyB) {
+  const a = new Date(`${dayKeyA}T00:00:00`);
+  const b = new Date(`${dayKeyB}T00:00:00`);
+  return Math.round((b - a) / 86400000);
+}
+
 export async function decideCompletion(completionId, approve) {
   await runTransaction(db, async (tx) => {
     const compRef = doc(db, "completions", completionId);
@@ -85,12 +95,69 @@ export async function decideCompletion(completionId, approve) {
     const comp = compSnap.data();
     if (comp.status !== "pending") return; // already decided elsewhere
 
+    let choreSnap = null;
+    let streakRef = null;
+    let streakSnap = null;
+    let kidRef = null;
+    let kidSnap = null;
     if (approve) {
-      const kidRef = doc(db, "kids", comp.kidId);
-      const kidSnap = await tx.get(kidRef);
-      if (kidSnap.exists()) {
-        const current = kidSnap.data().points || 0;
-        tx.update(kidRef, { points: current + comp.points });
+      const choreRef = doc(db, "chores", comp.choreId);
+      choreSnap = await tx.get(choreRef);
+      streakRef = doc(db, "streaks", `${comp.kidId}_${comp.choreId}`);
+      streakSnap = await tx.get(streakRef);
+      kidRef = doc(db, "kids", comp.kidId);
+      kidSnap = await tx.get(kidRef);
+    }
+
+    if (approve) {
+      let newPoints = (kidSnap.exists() ? kidSnap.data().points || 0 : 0) + comp.points;
+
+      const chore = choreSnap.exists() ? choreSnap.data() : null;
+      const streakDays = chore?.streakDays || 0;
+      const streakBonus = chore?.streakBonus || 0;
+      let bonusAwarded = 0;
+      let bonusDays = 0;
+
+      if (streakDays > 0) {
+        const doneDay = dayKey(comp.createdAt ? comp.createdAt.toDate() : new Date());
+        const streakData = streakSnap.exists() ? streakSnap.data() : { currentStreak: 0, lastDoneDate: null };
+        let newStreak;
+        if (!streakData.lastDoneDate) {
+          newStreak = 1;
+        } else {
+          const diff = daysBetween(streakData.lastDoneDate, doneDay);
+          if (diff === 0) newStreak = streakData.currentStreak;
+          else if (diff === 1) newStreak = streakData.currentStreak + 1;
+          else if (diff < 0) newStreak = streakData.currentStreak;
+          else newStreak = 1;
+        }
+        if (newStreak >= streakDays) {
+          bonusAwarded = streakBonus;
+          bonusDays = streakDays;
+          newPoints += streakBonus;
+          newStreak = 0;
+        }
+        tx.set(streakRef, {
+          kidId: comp.kidId,
+          choreId: comp.choreId,
+          currentStreak: newStreak,
+          lastDoneDate: doneDay,
+        });
+      }
+
+      tx.update(kidRef, { points: newPoints });
+
+      if (bonusAwarded > 0) {
+        const bonusRef = doc(collection(db, "bonuses"));
+        tx.set(bonusRef, {
+          kidId: comp.kidId,
+          kidName: comp.kidName,
+          choreId: comp.choreId,
+          choreName: comp.choreName,
+          days: bonusDays,
+          points: bonusAwarded,
+          createdAt: serverTimestamp(),
+        });
       }
     }
     tx.update(compRef, {
@@ -99,6 +166,18 @@ export async function decideCompletion(completionId, approve) {
     });
   });
 }
+
+// ---------- streaks (連続記録) ----------
+export function subscribeStreaks(cb) {
+  return onSnapshot(collection(db, "streaks"), (snap) => {
+    const items = [];
+    snap.forEach((d) => items.push({ id: d.id, ...d.data() }));
+    cb(items);
+  });
+}
+
+// ---------- bonuses (連続ボーナス履歴) ----------
+export const subscribeBonuses = (cb) => subscribe("bonuses", cb, "createdAt");
 
 // ---------- redemptions (こうかん申請) ----------
 export const subscribeRedemptions = (cb) => subscribe("redemptions", cb, "createdAt");

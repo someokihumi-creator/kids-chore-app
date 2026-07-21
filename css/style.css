@@ -213,6 +213,8 @@ body {
 .item-main { flex: 1; }
 .item-name { font-weight: bold; font-size: 1.02rem; }
 .item-points { color: var(--primary-dark); font-size: 0.85rem; margin-top: 2px; }
+.item-streak { color: #d9832a; font-size: 0.78rem; margin-top: 4px; font-weight: bold; }
+.item-streak:empty { display: none; }
 
 .btn-do {
   background: var(--accent);
@@ -285,6 +287,15 @@ body {
 .manage-row-emoji { font-size: 1.2rem; }
 .manage-row-name { flex: 1; font-weight: bold; }
 .manage-row-value { color: var(--primary-dark); font-size: 0.85rem; }
+
+.streak-input {
+  width: 64px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px;
+  font-size: 0.8rem;
+  font-family: inherit;
+}
 
 .add-form {
   display: flex;

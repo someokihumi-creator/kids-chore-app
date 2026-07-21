@@ -5,6 +5,7 @@ import {
   subscribeRewards, addReward, updateReward, deleteReward,
   subscribeCompletions, requestCompletion, decideCompletion,
   subscribeRedemptions, requestRedemption, decideRedemption,
+  subscribeStreaks, subscribeBonuses,
 } from "./db.js";
 
 const appEl = document.getElementById("app");
@@ -15,6 +16,8 @@ const state = {
   rewards: [],
   completions: [],
   redemptions: [],
+  streaks: [],
+  bonuses: [],
   screen: "loading", // 'profile-picker' | 'kid-home' | 'parent-home'
   currentKidId: null,
   activeTab: { kid: "chores", parent: "approvals" },
@@ -115,6 +118,15 @@ function renderKidHome() {
   for (const chore of activeChores) {
     const item = tpl("tpl-chore-item");
     fillSlots(item, { name: chore.name, points: `${chore.points} pt` });
+    if (chore.streakDays > 0) {
+      const streak = state.streaks.find((s) => s.id === `${kid.id}_${chore.id}`);
+      const current = streak?.currentStreak || 0;
+      const remaining = chore.streakDays - current;
+      item.querySelector('[data-slot="streak"]').textContent =
+        current > 0
+          ? `🔥 ${current}/${chore.streakDays}日連続 (あと${remaining}日で+${chore.streakBonus}pt)`
+          : `🔥 ${chore.streakDays}日連続で+${chore.streakBonus}pt`;
+    }
     const pending = state.completions.some(
       (c) => c.kidId === kid.id && c.choreId === chore.id && c.status === "pending"
     );
@@ -155,15 +167,18 @@ function renderKidHome() {
   const myHistory = [
     ...state.completions.filter((c) => c.kidId === kid.id).map((c) => ({ ...c, kind: "chore" })),
     ...state.redemptions.filter((r) => r.kidId === kid.id).map((r) => ({ ...r, kind: "reward" })),
+    ...state.bonuses.filter((b) => b.kidId === kid.id).map((b) => ({ ...b, kind: "bonus" })),
   ].sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
   if (myHistory.length === 0) emptyHint(historyList, "きろくはまだありません。");
   for (const h of myHistory) {
     const item = tpl("tpl-history-item");
-    const icon = h.status === "pending" ? "⏳" : h.status === "approved" ? "✅" : "❌";
+    const icon = h.kind === "bonus" ? "🔥" : h.status === "pending" ? "⏳" : h.status === "approved" ? "✅" : "❌";
     const text =
       h.kind === "chore"
         ? `${h.choreName} (+${h.points}pt)`
-        : `${h.rewardName} と こうかん (-${h.cost}pt)`;
+        : h.kind === "reward"
+        ? `${h.rewardName} と こうかん (-${h.cost}pt)`
+        : `${h.choreName} ${h.days}日連続ボーナス (+${h.points}pt)`;
     fillSlots(item, { status: icon, text, date: fmtDate(h.createdAt) });
     historyList.appendChild(item);
   }
@@ -234,6 +249,34 @@ function renderParentHome() {
       emoji: "🧹", name: chore.name, value: `${chore.points}pt`,
       showToggle: true, active: chore.active !== false,
     });
+    const rowEl = row.querySelector(".manage-row");
+    const deleteBtn = rowEl.querySelector('[data-action="delete-item"]');
+
+    const daysInput = document.createElement("input");
+    daysInput.type = "number";
+    daysInput.min = "0";
+    daysInput.placeholder = "連続日";
+    daysInput.className = "streak-input";
+    daysInput.value = chore.streakDays || "";
+    const bonusInput = document.createElement("input");
+    bonusInput.type = "number";
+    bonusInput.min = "0";
+    bonusInput.placeholder = "ボーナスpt";
+    bonusInput.className = "streak-input";
+    bonusInput.value = chore.streakBonus || "";
+    const saveStreakBtn = document.createElement("button");
+    saveStreakBtn.className = "btn-icon";
+    saveStreakBtn.textContent = "🔥";
+    saveStreakBtn.title = "連続ボーナスを保存（両方0で解除）";
+    saveStreakBtn.addEventListener("click", () => {
+      const days = parseInt(daysInput.value, 10) || 0;
+      const bonus = parseInt(bonusInput.value, 10) || 0;
+      updateChore(chore.id, { streakDays: days, streakBonus: bonus });
+    });
+    rowEl.insertBefore(daysInput, deleteBtn);
+    rowEl.insertBefore(bonusInput, deleteBtn);
+    rowEl.insertBefore(saveStreakBtn, deleteBtn);
+
     row.querySelector('[data-action="toggle-active"]').addEventListener("click", () =>
       updateChore(chore.id, { active: chore.active === false })
     );
@@ -281,16 +324,19 @@ function renderParentHome() {
   const allHistory = [
     ...state.completions.map((c) => ({ ...c, kind: "chore" })),
     ...state.redemptions.map((r) => ({ ...r, kind: "reward" })),
+    ...state.bonuses.map((b) => ({ ...b, kind: "bonus" })),
   ].sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
   const historyList = root.querySelector('[data-slot="all-history"]');
   if (allHistory.length === 0) emptyHint(historyList, "きろくはまだありません。");
   for (const h of allHistory) {
     const item = tpl("tpl-history-item");
-    const icon = h.status === "pending" ? "⏳" : h.status === "approved" ? "✅" : "❌";
+    const icon = h.kind === "bonus" ? "🔥" : h.status === "pending" ? "⏳" : h.status === "approved" ? "✅" : "❌";
     const text =
       h.kind === "chore"
         ? `${h.kidName}: ${h.choreName} (+${h.points}pt)`
-        : `${h.kidName}: ${h.rewardName} と こうかん (-${h.cost}pt)`;
+        : h.kind === "reward"
+        ? `${h.kidName}: ${h.rewardName} と こうかん (-${h.cost}pt)`
+        : `${h.kidName}: ${h.choreName} ${h.days}日連続ボーナス (+${h.points}pt)`;
     fillSlots(item, { status: icon, text, date: fmtDate(h.createdAt) });
     historyList.appendChild(item);
   }
@@ -346,6 +392,8 @@ async function boot() {
   subscribeRewards((rewards) => { state.rewards = rewards; render(); });
   subscribeCompletions((completions) => { state.completions = completions; render(); });
   subscribeRedemptions((redemptions) => { state.redemptions = redemptions; render(); });
+  subscribeStreaks((streaks) => { state.streaks = streaks; render(); });
+  subscribeBonuses((bonuses) => { state.bonuses = bonuses; render(); });
 }
 
 boot();
