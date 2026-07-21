@@ -28,7 +28,7 @@ service cloud.firestore {
 
 ## 3. アプリに設定を反映する
 
-`js/firebase-config.example.js` を `js/firebase-config.js` という名前でコピーし、手順1でコピーした値を貼り付ける。
+`js/firebase-config.js` の中身を、手順1でコピーした自分の値に書き換える（このリポジトリに入っている値は元の家庭のFirebaseプロジェクトのものなので、必ず自分の値に置き換えること。参考用のひな形は `js/firebase-config.example.js`）。
 
 ## 4. 公開する
 
