@@ -30,6 +30,17 @@
     </div>
   </template>
 
+  <template id="tpl-parent-gate">
+    <div class="screen parent-gate">
+      <h1 class="app-title">🔒 おうちの人</h1>
+      <p class="subtitle">あんしょう番号をいれてください</p>
+      <input type="password" inputmode="numeric" pattern="[0-9]*" class="pin-input" data-field="pin" maxlength="8" placeholder="••••" autofocus />
+      <p class="pin-error hidden" data-slot="error">番号がちがいます</p>
+      <button class="btn btn-parent" data-action="submit-pin">すすむ</button>
+      <button class="btn-icon" data-action="go-home">🏠 もどる</button>
+    </div>
+  </template>
+
   <template id="tpl-kid-card">
     <button class="profile-card" data-action="pick-kid">
       <span class="profile-emoji" data-slot="emoji"></span>
@@ -138,6 +149,13 @@
             <input type="text" placeholder="ごほうび名" data-field="name" required />
             <input type="number" placeholder="ひつようポイント" data-field="cost" min="1" required />
             <button type="submit" class="btn btn-add">＋ ついか</button>
+          </form>
+        </div>
+        <div class="manage-section">
+          <h2 class="section-title">あんしょう番号</h2>
+          <form class="add-form" data-form="change-pin">
+            <input type="password" inputmode="numeric" pattern="[0-9]*" placeholder="あたらしい番号" data-field="pin" maxlength="8" required />
+            <button type="submit" class="btn btn-add">へんこう</button>
           </form>
         </div>
       </section>

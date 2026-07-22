@@ -17,6 +17,7 @@ import {
   orderBy,
   serverTimestamp,
   runTransaction,
+  setDoc,
 } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
 const app = initializeApp(firebaseConfig);
@@ -215,3 +216,14 @@ export async function decideRedemption(redemptionId, approve) {
     tx.update(redRef, { status: finalStatus, decidedAt: serverTimestamp() });
   });
 }
+
+// ---------- settings (親モードのPINなど) ----------
+const settingsRef = doc(db, "settings", "app");
+
+export function subscribeSettings(cb) {
+  return onSnapshot(settingsRef, (snap) => {
+    cb(snap.exists() ? snap.data() : {});
+  });
+}
+
+export const setParentPin = (pin) => setDoc(settingsRef, { parentPin: pin }, { merge: true });

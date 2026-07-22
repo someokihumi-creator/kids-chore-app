@@ -6,8 +6,10 @@ import {
   subscribeCompletions, requestCompletion, decideCompletion,
   subscribeRedemptions, requestRedemption, decideRedemption,
   subscribeStreaks, subscribeBonuses,
+  subscribeSettings, setParentPin,
 } from "./db.js";
 
+const DEFAULT_PIN = "1234";
 const appEl = document.getElementById("app");
 
 const state = {
@@ -18,7 +20,8 @@ const state = {
   redemptions: [],
   streaks: [],
   bonuses: [],
-  screen: "loading", // 'profile-picker' | 'kid-home' | 'parent-home'
+  settings: {},
+  screen: "loading", // 'profile-picker' | 'parent-gate' | 'kid-home' | 'parent-home'
   currentKidId: null,
   activeTab: { kid: "chores", parent: "approvals" },
 };
@@ -67,6 +70,11 @@ function goKid(kidId) {
   render();
 }
 
+function goParentGate() {
+  state.screen = "parent-gate";
+  render();
+}
+
 function goParent() {
   state.screen = "parent-home";
   state.activeTab.parent = "approvals";
@@ -77,6 +85,7 @@ function goParent() {
 function render() {
   appEl.innerHTML = "";
   if (state.screen === "profile-picker") renderProfilePicker();
+  else if (state.screen === "parent-gate") renderParentGate();
   else if (state.screen === "kid-home") renderKidHome();
   else if (state.screen === "parent-home") renderParentHome();
 }
@@ -96,8 +105,34 @@ function renderProfilePicker() {
     card.querySelector('[data-action="pick-kid"]').addEventListener("click", () => goKid(kid.id));
     grid.appendChild(card);
   }
-  frag.querySelector('[data-action="go-parent"]').addEventListener("click", goParent);
+  frag.querySelector('[data-action="go-parent"]').addEventListener("click", goParentGate);
   appEl.appendChild(frag);
+}
+
+function renderParentGate() {
+  const frag = tpl("tpl-parent-gate");
+  frag.querySelector('[data-action="go-home"]').addEventListener("click", goHome);
+  const input = frag.querySelector('[data-field="pin"]');
+  const errorEl = frag.querySelector('[data-slot="error"]');
+
+  const trySubmit = () => {
+    const correctPin = state.settings.parentPin || DEFAULT_PIN;
+    if (input.value === correctPin) {
+      goParent();
+    } else {
+      errorEl.classList.remove("hidden");
+      input.value = "";
+      input.focus();
+    }
+  };
+
+  frag.querySelector('[data-action="submit-pin"]').addEventListener("click", trySubmit);
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") trySubmit();
+  });
+
+  appEl.appendChild(frag);
+  appEl.querySelector(".pin-input")?.focus();
 }
 
 function renderKidHome() {
@@ -320,6 +355,16 @@ function renderParentHome() {
     form.reset();
   });
 
+  root.querySelector('[data-form="change-pin"]').addEventListener("submit", (e) => {
+    e.preventDefault();
+    const form = e.target;
+    const pin = form.querySelector('[data-field="pin"]').value.trim();
+    if (!pin) return;
+    setParentPin(pin);
+    form.reset();
+    toast("あんしょう番号をへんこうしました");
+  });
+
   // history (all)
   const allHistory = [
     ...state.completions.map((c) => ({ ...c, kind: "chore" })),
@@ -394,6 +439,7 @@ async function boot() {
   subscribeRedemptions((redemptions) => { state.redemptions = redemptions; render(); });
   subscribeStreaks((streaks) => { state.streaks = streaks; render(); });
   subscribeBonuses((bonuses) => { state.bonuses = bonuses; render(); });
+  subscribeSettings((settings) => { state.settings = settings; render(); });
 }
 
 boot();
