@@ -180,7 +180,9 @@ function renderKidHome() {
 
   // rewards
   const rewardList = root.querySelector('[data-slot="reward-list"]');
-  const activeRewards = state.rewards.filter((r) => r.active !== false);
+  const activeRewards = state.rewards
+    .filter((r) => r.active !== false)
+    .sort((a, b) => a.cost - b.cost);
   if (activeRewards.length === 0) emptyHint(rewardList, "ごほうびがまだ登録されていません。");
   for (const reward of activeRewards) {
     const item = tpl("tpl-reward-item");
